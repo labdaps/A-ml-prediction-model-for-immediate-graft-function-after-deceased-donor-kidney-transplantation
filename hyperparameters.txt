@@ -1,0 +1,51 @@
+--------------------------------------------------------------------				
+	Algorithms	Hyperparameters	Values	
+--------------------------------------------------------------------
+Extreme Gradient Boosting	colsample_bytree	0.85	
+				gamma	0.5	
+				learning_rate	0.105	
+				max_depth	7	
+				min_child_weight	3.0	
+				n_jobs	-2	
+				random_state	42	
+				reg_alpha	1.0	
+				scale_pos_weight	3	
+				subsample	0.8
+--------------------------------------------------------------------	
+Light Gradient Boosting Machine	max_depth	60	
+				n_estimators	10	
+				random_state	42	
+				reg_alpha	0.22140618912249554	
+				reg_lambda	0.11884207867085578	
+				scale_pos_weight	3	
+--------------------------------------------------------------------
+Gradient Boosting Classifier	learning_rate	0.84	
+				max_depth	10	
+				max_features	auto	
+				min_samples_split	4	
+				n_estimators	50	
+				random_state	42	
+				subsample	0.8000000000000002	
+--------------------------------------------------------------------
+Random Forest Classifier	max_depth	1200	
+				max_features	log2	
+				min_samples_leaf	7	
+				min_samples_split	15	
+				n_estimators	1067	
+				n_jobs	-1	
+				random_state	42
+--------------------------------------------------------------------	
+CatBoost Classifier		learning_rate	0.46	
+				l2_leaf_reg	2	
+				border_count	50	
+				silent	True	
+				max_depth	8	
+				n_estimators	50	
+				random_state	42	
+--------------------------------------------------------------------
+Ada Boost Classifier		algorithm	SAMME	
+				learning_rate	0.81	
+				n_estimators	80	
+				random_state	42	
+--------------------------------------------------------------------
+				
