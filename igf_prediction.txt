@@ -311,3 +311,12 @@ adab = create_model(estimator='ada', round=3)
 ada_otimizado = tune_model('ada', round=3, optimize='AUC')
 predict_ada = predict_model(ada_otimizado)
 Utils.binary_classification_metrics(predict_ada['target'], predict_ada['Label'], predict_ada['Score'], show_results=True)
+
+# final model
+final_model = finalize_model(xb_otimizado)
+
+# prediction with new data
+preds = predict_model(xb_otimizado)
+preds
+
+Utils.binary_classification_metrics(preds['target'], preds['Label'], preds['Score'], show_results=True)
