@@ -1,0 +1,337 @@
+import os
+os.chdir('C:/Users/mariane/OneDrive/Back Up Azure LABDAPS/MLFlow-master/')
+
+from MLFlow_Classification import *
+from MLFlow_Preprocess import *
+from MLFlow_Utils import *
+import random
+from matplotlib import pyplot as plt
+import MLFlow_Utils as Utils
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, brier_score_loss, precision_score, recall_score, f1_score, roc_auc_score
+from imblearn.metrics import specificity_score
+import matplotlib.pyplot as plt
+import shap
+pd.set_option('display.float_format', lambda x: '%.3f' % x)
+
+df = pd.read_excel(open('C:/Users/mariane/OneDrive/Back Up Azure LABDAPS/Transplante_renal_dialise/PLANILHA COMPLETA _2010-2019_ORIGINAL (1).xlsx', 'rb'),sheet_name='Planilha1')
+df.shape
+
+df = df.rename(columns={'rghc':"ID", 
+                   'dialise_S_N':"dialise", 
+                   'grupo O_FRI; 2_FLE ;1_DIAL':"grupo",
+                   'dt_tx':"dt_transplante", 
+                   'tx':"numero_de_transplantes",
+                   'sx':"sexo_receptor", 
+                   'id_tx':"idade_receptor", 
+                   'raca':"raca_receptor",
+                   'raca_index':"raca_receptor_index", 
+                   'tipo dialise pre-Tx':"tipo_dialise_pre",
+                   'tmp_dialise':"tempo_dialise_pre", 
+                   'causa_drc':"diag_causa_drc",
+                   'causa_drc_index':"diag_causa_drc_index", 
+                   'peso_tx':"peso_receptor", 
+                   'imc_tx':"imc_receptor",
+                   'tipo_doador':"tipo_doador", 
+                   'id_doador ':"idade_doador",
+                   'sx_d':"sexo_doador", 
+                   'raca_d':"raca_doador", 
+                   'raca_d_Index':"raca_doador_index",
+                   'HAS_kdri':"historia_has_kdri",
+                   'DM_kdri':"historia_dm_kdri", 
+                   'creat_inic_d':"creatinina_inicial_doador", 
+                   'creat_final_d':"creatinina_final_doador",
+                   'resultado_kdri':"resultado_final_kdri",
+                   'tmp_isq_fria':"tempo_isquemia_fria", 
+                   'OPO_group':"opo_origem_doador",
+                   'OPO_Index':"opo_origem_doador_index", 
+                   'ABO_d':"sangue_abo_doador",
+                   'peso_d':"peso_doador", 
+                   'altura_d':"altura_doador",
+                   'imc_d':"imc_doador",
+                   'pam_d':"pressao_media_doador",
+                   'diurese_24hr':"diurese_doador_24h",
+                   'diurese_hora':"diurese_doador_p_hora",
+                   'diurese_ml_Kg_h':"diurese_doador_mlkghora",
+                   'Causa_morte_kdri':"causa_morte_doador",
+                   'causa_morte_kdri_index ':"causa_morte_doador_index",
+                   'pcr_d':"parada_cardiaca_rever_doador", 
+                   'dias_uti':"dias_uti_doador", 
+                   'noradrenalina':"uso_noradrenalina_doador", 
+                   'solucao_perfusao':"perfusao_enxerto",
+                   'index solução perfusão ':"perfusao_enxerto_index",
+                   'mismatches_A':"numero_incomp_hla_A", 
+                   'mismatches_B':"numero_incomp_hla_B",
+                   'mismatches_DR':"numero_incomp_hla_DR",
+                   'mismatches_total':"numero_incomp_hla_A_B_DR",
+                   'inducao':"medicamento_inducao_pretransp",
+                  })"
+
+
+df['target'] = df['dialise'].apply(lambda x:1 if x == 'Sim' else 0)
+df['funcao_renal_imediata'] = df['grupo'].apply(lambda x:1 if x == 0 else 0)
+
+
+df['raca_recep'] = df['raca_receptor'].apply(lambda x:1 if x == 'BRANCA' else 0)
+df['raca_doad'] = df['raca_doador'].apply(lambda x:1 if x == 'BRANCA' else 0)
+df['sexo_receptor'] = df['sexo_receptor'].apply(lambda x:1 if x == 'M' else 0)
+df.tempo_dialise_pre = df.tempo_dialise_pre.fillna(0)
+df.tempo_dialise_pre = df.tempo_dialise_pre.astype(int)
+df['tipo_doador'] = df['tipo_doador'].apply(lambda x:1 if x == 'CRITÉRIO EXPANDIDO' else 0)
+df['sexo_doador'] = df['sexo_doador'].apply(lambda x:1 if x == 'M' else 0)
+df.historia_has_kdri = df.historia_has_kdri.fillna(0)
+df.historia_has_kdri = df.historia_has_kdri.astype(int)
+df.historia_dm_kdri = df.historia_dm_kdri.fillna(0)
+df.historia_dm_kdri = df.historia_dm_kdri.astype(int)
+df.opo_origem_doador_index = df.opo_origem_doador_index.fillna(0)
+df.opo_origem_doador_index = df.opo_origem_doador_index.astype(int)
+df['diurese_doador_p_hora'] = df['diurese_doador_p_hora'].replace(',', '.', regex=True)
+df.diurese_doador_p_hora = df.diurese_doador_p_hora.astype(float)
+df['diurese_doador_mlkghora'] = df['diurese_doador_mlkghora'].replace(',', '.', regex=True)
+df.diurese_doador_mlkghora = df.diurese_doador_mlkghora.astype(float)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('DP-DIALISE PERITONEAL', 'DP - DIALISE PERITONEAL', regex=True)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('DP - DIALISE PERITONEAL ', 'DP - DIALISE PERITONEAL', regex=True)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('HD   - HEMODIÁLISE', 'HD - HEMODIALISE', regex=True)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('HD-HEMODIALISE', 'HD - HEMODIALISE', regex=True)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('HD- HEMODIALISE', 'HD - HEMODIALISE', regex=True)
+df['tipo_dialise_pre']  = df['tipo_dialise_pre'].replace('HD - HEMODIALISE ', 'HD - HEMODIALISE', regex=True)
+df['HD_pre']  = df['tipo_dialise_pre'].apply(lambda x:1 if x == 'HD - HEMODIALISE' else 0) 
+df['pressao_media_doador']  = df['pressao_media_doador'].replace('NaN', '0', regex=True)
+df['pressao_media_doador']  = df['pressao_media_doador'].replace('-', '0', regex=True)
+df.pressao_media_doador = df.pressao_media_doador.fillna(0)
+df.pressao_media_doador = df.pressao_media_doador.astype(float)
+df['pressao_media_doador']  = df['pressao_media_doador'].replace(0.0, 'NaN', regex=True)
+df.pressao_media_doador = df.pressao_media_doador.astype(float)
+df['medicamento_inducao_pretransp']  = df['medicamento_inducao_pretransp'].replace('BASILIXIMABE', '1', regex=True)
+df['medicamento_inducao_pretransp']  = df['medicamento_inducao_pretransp'].replace('METILPREDNISOLONA', '2', regex=True)
+df['medicamento_inducao_pretransp']  = df['medicamento_inducao_pretransp'].replace('ATG - TIMOGLOBULINA', '3', regex=True)
+df.medicamento_inducao_pretransp = df.medicamento_inducao_pretransp.astype(int)
+df['sangue_abo_doador'] = df['sangue_abo_doador'].replace({'A+':'A',
+                                                           'A-':'A',
+                                                           'AB+':'AB',
+                                                           'AB-':'AB',
+                                                           'B+':'B',
+                                                           'B-':'B',
+                                                           'O+':'O',
+                                                           'O-':'O'
+                                                          })
+df['blood_A'] = df['sangue_abo_doador'].apply(lambda x:1 if x == 'A' else 0)
+df['blood_B'] = df['sangue_abo_doador'].apply(lambda x:1 if x == 'B' else 0)
+df['blood_AB'] = df['sangue_abo_doador'].apply(lambda x:1 if x == 'AB' else 0)
+df['blood_O'] = df['sangue_abo_doador'].apply(lambda x:1 if x == 'O' else 0)
+df.causa_morte_doador_index = df.causa_morte_doador_index.fillna(0)
+df.causa_morte_doador_index = df.causa_morte_doador_index.astype(int)
+df.parada_cardiaca_rever_doador = df.parada_cardiaca_rever_doador.fillna(0)
+df.parada_cardiaca_rever_doador = df.parada_cardiaca_rever_doador.astype(int)
+df.uso_noradrenalina_doador = df.uso_noradrenalina_doador.fillna(0)
+df.uso_noradrenalina_doador = df.uso_noradrenalina_doador.astype(int)
+df.perfusao_enxerto_index = df.perfusao_enxerto_index.fillna(0)
+df.perfusao_enxerto_index = df.perfusao_enxerto_index.astype(int)
+df.numero_incomp_hla_A = df.numero_incomp_hla_A.astype(float)
+df.numero_incomp_hla_B = df.numero_incomp_hla_B.astype(float)
+df.numero_incomp_hla_DR = df.numero_incomp_hla_DR.astype(float)
+
+ df.drop(['ID',
+         'raca_receptor_index',
+         'raca_doador_index',
+         'raca_receptor',
+         'raca_doador',
+         'diag_causa_drc',
+         'dt_transplante',
+         'perfusao_enxerto',
+         'causa_morte_doador',
+         'opo_origem_doador',
+         'dialise', 
+         'grupo', 
+         'tipo_dialise_pre', 
+         'funcao_renal_imediata',   
+         'numero_de_transplantes',
+         'peso_receptor',
+         'peso_doador',
+         'diurese_doador_24h',
+         'diurese_doador_p_hora',
+         'numero_incomp_hla_A_B_DR',
+         'altura_doador',
+         'sangue_abo_doador',
+        ], axis=1, inplace=True)
+
+def missing_zero_values_table(df):
+        zero_val = (df == 0.00).astype(int).sum(axis=0)
+        mis_val = df.isnull().sum()
+        mis_val_percent = 100 * df.isnull().sum() / len(df)
+        mz_table = pd.concat([zero_val, mis_val, mis_val_percent], axis=1)
+        mz_table = mz_table.rename(
+        columns = {0 : 'Zero Values', 1 : 'Missing Values', 2 : '% of Total Values'})
+        mz_table['Total Zero Missing Values'] = mz_table['Zero Values'] + mz_table['Missing Values']
+        mz_table['% Total Zero Missing Values'] = 100 * mz_table['Total Zero Missing Values'] / len(df)
+        mz_table['Data Type'] = df.dtypes
+        mz_table = mz_table[
+            mz_table.iloc[:,1] != 0].sort_values(
+        '% of Total Values', ascending=False).round(1)
+        print ("Your selected dataframe has " + str(df.shape[1]) + " columns and " + str(df.shape[0]) + " Rows.\n"      
+            "There are " + str(mz_table.shape[0]) +
+              " columns that have missing values.")
+        return mz_table
+
+missing_zero_values_table(df)
+
+df1 = df[['target','idade_doador', 'creatinina_final_doador', 'resultado_final_kdri', 'diurese_doador_mlkghora','pressao_media_doador']]
+ 
+exp1 = setup(df1,
+             target='target', 
+             normalize=True, 
+             numeric_features=['pressao_media_doador',
+                               'tempo_dialise_pre'],
+             categorical_features=['historia_has_kdri',
+                                'historia_dm_kdri',
+                                'opo_origem_doador_index',
+                                'causa_morte_doador_index',
+                                'parada_cardiaca_rever_doador',
+                                'uso_noradrenalina_doador',
+                                'perfusao_enxerto_index',
+                                'medicamento_inducao_pretransp'],
+             resample=True,
+             resample_method="enn")
+
+
+X, y, X_train, X_test, y_train, y_test, seed, prep_pipe, _ = exp1
+
+compare_models(sort='AUC')
+
+xb_otimizado = tune_model('xgboost', round=3, optimize='AUC', n_iter=100)
+
+predict_xb = predict_model(xb_otimizado)
+
+Utils.binary_classification_metrics(predict_xb['target'], predict_xb['Label'], predict_xb['Score'], show_results=True)
+
+plot_model(xb_otimizado, 'shapley')
+ 
+calibrated_xgboost = calibrate_model(xb_otimizado, method='sigmoid', round=3)
+ 
+predict_xb = predict_model(calibrated_xgboost)
+ 
+plot_model(calibrated_xgboost, 'ktops')
+  
+lightgbm_otimizado = tune_model('lightgbm', round=3, optimize='AUC', n_iter=100)
+ 
+predict_lgbm = predict_model(lightgbm_otimizado)
+   
+Utils.binary_classification_metrics(predict_lgbm['target'], predict_lgbm['Label'], predict_lgbm['Score'], show_results=True)
+  
+plot_model(lightgbm_otimizado, 'shapley')
+  
+calibrated_lightGBM = calibrate_model(lightgbm_otimizado, method='sigmoid', round=3)
+  
+predict_lgbm = predict_model(calibrated_lightGBM)
+  
+plot_model(calibrated_lightGBM, 'ktops')
+  
+gbc_otimizado = tune_model('gbc', round=3, optimize='AUC', n_iter=100)
+  
+predict_gbc = predict_model(gbc_otimizado)
+ 
+Utils.binary_classification_metrics(predict_gbc['target'], predict_gbc['Label'], predict_gbc['Score'], show_results=True)
+ 
+plot_model(gbc_otimizado, 'shapley')
+ 
+calibrated_GBC = calibrate_model(gbc_otimizado, method='sigmoid', round=3)
+
+predict_gbc = predict_model(calibrated_GBC)
+ 
+plot_model(calibrated_GBC, 'ktops')
+ 
+lr = LogisticRegression(random_state=42, penalty='none')
+lr = lr.fit(X_train, y_train)
+y_pred = lr.predict(X_test)
+prob_pos = lr.predict_proba(X_test)
+prob_pos = prob_pos[:,1]
+  
+print("\tROC(AUC) %1.3f" % roc_auc_score(y_test, prob_pos))
+print("\tRecall %1.3f" % recall_score(y_test, y_pred))
+print("\tPrecision %1.3f" % precision_score(y_test, y_pred))
+print("\tF1 %1.3f" % f1_score(y_test, y_pred))
+print("\tBrier %1.3f" % brier_score_loss(y_test, y_pred))
+print("\tSpecificity %1.3f" % specificity_score(y_test, y_pred))
+print("\tNPV %1.3f" % precision_score(y_test, y_pred, pos_label=0))
+  
+predict_lr = predict_model(lr)
+  
+Utils.binary_classification_metrics(predict_lr['target'], predict_lr['Label'], predict_lr['Score'], show_results=True)
+
+calibrated_lr = calibrate_model(lr, method='sigmoid', round=3)
+
+plot_model(calibrated_lr,'ktops')
+
+rf_otimizado = tune_model('rf', round=3, optimize='AUC', n_iter=100)
+
+predict_rf = predict_model(rf_otimizado)
+
+calibrated_rf = calibrate_model(rf_otimizado, method='sigmoid', round=3)
+
+predict_rf = predict_model(calibrated_rf)
+
+print("\tNPV %1.3f" % precision_score(y_test, y_pred, pos_label=0))
+
+plot_model(calibrated_rf, 'ktops')
+
+catb_otimizado = tune_model('catboost', round=3, optimize='AUC', n_iter=100)
+
+predict_catb = predict_model(catb_otimizado)
+
+Utils.binary_classification_metrics(predict_catb['target'], predict_catb['Label'], predict_catb['Score'], show_results=True)
+
+# 20%
+model=catb_otimizado
+model_name = str(model).split("(")[0]
+
+ytest_prob = model.predict_proba(X_test)[:, 1]
+
+k_tops = int(0.20 * X_test.shape[0])
+
+print(f'Using 20% rows of the test set (n = {k_tops})')
+
+y_test_hat = model.predict(X_test)
+
+y_test_hat[:] = 1
+
+y_k = pd.DataFrame({
+    "prob": ytest_prob,
+    "predicted_class": y_test_hat,
+    "real": y_test.values.ravel(),})
+
+y_k["result"] = np.where(y_k["predicted_class"] + y_k["real"] == 2, 1, 0)
+
+sorted_y = y_k.sort_values("prob", ascending=False)
+
+display(sorted_y.head(k_tops))
+
+print(f"Positive rows in the test set= {np.sum(y_test, axis=0)}")
+
+total_ktops = np.sum(sorted_y["result"].head(k_tops), axis=0)
+
+print(f"True positive predictions in the 20% k-tops =  {total_ktops}")
+
+perc = total_ktops / np.sum(y_test, axis=0)
+
+print(f"% of accuracy = {perc * 100}%")
+print(f"% nome:{model_name}")
+
+f = plt.figure()
+ax = f.add_subplot()
+shap_values = shap.TreeExplainer(catb_otimizado).shap_values(X_test)
+shap.summary_plot(shap_values, X_test, max_display=10, plot_type="dot")
+
+ada_otimizado = tune_model('ada', round=3, optimize='AUC', n_iter=100)
+
+predict_ada = predict_model(ada_otimizado)
+
+Utils.binary_classification_metrics(predict_ada['target'], predict_ada['Label'], predict_ada['Score'], show_results=True)
+
+calibrated_ada = calibrate_model(ada_otimizado, method='sigmoid', round=3)
+
+predict_ada = predict_model(calibrated_ada)
+
+plot_model(calibrated_ada, 'ktops')
+
